@@ -1,6 +1,11 @@
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:good_morning_sunshine/src/pages/initial_page.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 
 class PiclesOfTheDay extends StatefulWidget {
   const PiclesOfTheDay({Key? key}) : super(key: key);
@@ -10,6 +15,52 @@ class PiclesOfTheDay extends StatefulWidget {
 }
 
 class _PiclesOfTheDayState extends State<PiclesOfTheDay> {
+  static const _jsonConfigMetadata =
+      "https://api.github.com/repos/hericles-koelher/bom_dia_flor_do_dia/contents/config/config.json";
+  final _random = Random();
+  var _isLoadingConfigData = true;
+  Map<String, dynamic>? _configData;
+  var _configIndex = 0;
+  var _isLoadingImage = true;
+  Uint8List? _image;
+
+  @override
+  void initState() {
+    super.initState();
+
+    http.get(Uri.parse(_jsonConfigMetadata)).then((configMetadataResponse) {
+      var sha = jsonDecode(configMetadataResponse.body)["sha"];
+
+      var configUrl =
+          "https://api.github.com/repos/hericles-koelher/bom_dia_flor_do_dia/git/blobs/$sha";
+
+      http.get(Uri.parse(configUrl)).then((response) {
+        var bodyContent = (jsonDecode(response.body)["content"] as String)
+            .replaceAll("\n", "");
+
+        _configData = jsonDecode(utf8.decode(base64Decode(bodyContent)));
+        _isLoadingConfigData = false;
+
+        _choose();
+      });
+    });
+  }
+
+  _choose() {
+    if (_configData != null) {
+      _configIndex = _random.nextInt(_configData!["count"] as int);
+
+      http
+          .get(Uri.parse(_configData!["images"][_configIndex]))
+          .then((response) {
+        setState(() {
+          _image = response.bodyBytes;
+          _isLoadingImage = false;
+        });
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     backToHome() {
@@ -55,17 +106,27 @@ class _PiclesOfTheDayState extends State<PiclesOfTheDay> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Spacer(),
-                  Text(
-                    "PLACEHOLDER TEXT",
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.oswald().copyWith(
-                      fontSize: 20,
+                  if (!_isLoadingConfigData && !_isLoadingImage) ...[
+                    Text(
+                      _configData!["phrases"][_configIndex],
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.oswald().copyWith(
+                        fontSize: 28,
+                      ),
                     ),
-                  ),
-                  Icon(Icons.bolt_sharp),
+                    const SizedBox(height: 40),
+                    Image.memory(_image!),
+                  ],
+                  if (_isLoadingImage) ...[const CircularProgressIndicator()],
                   const Spacer(),
                   ElevatedButton.icon(
-                    onPressed: () {},
+                    onPressed: () {
+                      setState(() {
+                        _isLoadingImage = true;
+                      });
+
+                      _choose();
+                    },
                     icon: const Icon(Icons.refresh),
                     label: Text(
                       "Recarregar",
