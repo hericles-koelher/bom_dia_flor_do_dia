@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="br.com.picles.good_morning_sunshine">
+    <uses-permission android:name="android.permission.INTERNET" />
    <application
         android:label="Bom Dia Flor do Dia"
         android:name="${applicationName}"

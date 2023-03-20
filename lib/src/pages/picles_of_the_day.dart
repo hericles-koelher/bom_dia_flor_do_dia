@@ -14,7 +14,8 @@ class PiclesOfTheDay extends StatefulWidget {
   State<PiclesOfTheDay> createState() => _PiclesOfTheDayState();
 }
 
-class _PiclesOfTheDayState extends State<PiclesOfTheDay> {
+class _PiclesOfTheDayState extends State<PiclesOfTheDay>
+    with TickerProviderStateMixin {
   static const _jsonConfigMetadata =
       "https://api.github.com/repos/hericles-koelher/bom_dia_flor_do_dia/contents/config/config.json";
   final _random = Random();
@@ -23,6 +24,14 @@ class _PiclesOfTheDayState extends State<PiclesOfTheDay> {
   var _configIndex = 0;
   var _isLoadingImage = true;
   Uint8List? _image;
+  late final AnimationController _opacityController = AnimationController(
+    duration: const Duration(milliseconds: 1000),
+    vsync: this,
+  );
+  late final Animation<double> _opacityAnimation = CurvedAnimation(
+    parent: _opacityController,
+    curve: Curves.easeIn,
+  );
 
   @override
   void initState() {
@@ -56,6 +65,7 @@ class _PiclesOfTheDayState extends State<PiclesOfTheDay> {
         setState(() {
           _image = response.bodyBytes;
           _isLoadingImage = false;
+          _opacityController.animateTo(1.0);
         });
       });
     }
@@ -77,20 +87,24 @@ class _PiclesOfTheDayState extends State<PiclesOfTheDay> {
         return Future.value(false);
       },
       child: Scaffold(
-        backgroundColor: Theme.of(context).backgroundColor,
         appBar: AppBar(
           leading: IconButton(
             onPressed: backToHome,
             icon: const Icon(Icons.arrow_back),
           ),
           actions: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: CircleAvatar(
-                child: Hero(
-                  tag: "sunflower",
-                  child: Image.asset("assets/girassol_800x800_transparent.png"),
-                ),
+            Container(
+              margin: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 5,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white70,
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Hero(
+                tag: "sunflower",
+                child: Image.asset("assets/girassol_800x800_transparent.png"),
               ),
             )
           ],
@@ -107,15 +121,21 @@ class _PiclesOfTheDayState extends State<PiclesOfTheDay> {
                 children: [
                   const Spacer(),
                   if (!_isLoadingConfigData && !_isLoadingImage) ...[
-                    Text(
-                      _configData!["phrases"][_configIndex],
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.oswald().copyWith(
-                        fontSize: 28,
+                    FadeTransition(
+                      opacity: _opacityAnimation,
+                      child: Text(
+                        _configData!["phrases"][_configIndex],
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.oswald().copyWith(
+                          fontSize: 28,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 40),
-                    Image.memory(_image!),
+                    FadeTransition(
+                      opacity: _opacityAnimation,
+                      child: Image.memory(_image!),
+                    ),
                   ],
                   if (_isLoadingImage) ...[const CircularProgressIndicator()],
                   const Spacer(),
@@ -123,6 +143,7 @@ class _PiclesOfTheDayState extends State<PiclesOfTheDay> {
                     onPressed: () {
                       setState(() {
                         _isLoadingImage = true;
+                        _opacityController.reset();
                       });
 
                       _choose();
